@@ -1,0 +1,145 @@
+{
+  "access": {
+    "embargo": {
+      "active": false,
+      "reason": null
+    },
+    "files": "restricted",
+    "record": "public",
+    "status": "restricted"
+  },
+  "created": "2025-04-14T15:45:46.083830+00:00",
+  "custom_fields": {},
+  "deletion_status": {
+    "is_deleted": false,
+    "status": "P"
+  },
+  "files": {
+    "enabled": true
+  },
+  "id": "15212527",
+  "is_draft": false,
+  "is_published": true,
+  "links": {
+    "access": "https://zenodo.org/api/records/15212527/access",
+    "access_grants": "https://zenodo.org/api/records/15212527/access/grants",
+    "access_links": "https://zenodo.org/api/records/15212527/access/links",
+    "access_request": "https://zenodo.org/api/records/15212527/access/request",
+    "access_users": "https://zenodo.org/api/records/15212527/access/users",
+    "archive": "https://zenodo.org/api/records/15212527/files-archive",
+    "archive_media": "https://zenodo.org/api/records/15212527/media-files-archive",
+    "communities": "https://zenodo.org/api/records/15212527/communities",
+    "communities-suggestions": "https://zenodo.org/api/records/15212527/communities-suggestions",
+    "doi": "https://doi.org/10.5281/zenodo.15212527",
+    "draft": "https://zenodo.org/api/records/15212527/draft",
+    "files": "https://zenodo.org/api/records/15212527/files",
+    "latest": "https://zenodo.org/api/records/15212527/versions/latest",
+    "latest_html": "https://zenodo.org/records/15212527/latest",
+    "media_files": "https://zenodo.org/api/records/15212527/media-files",
+    "parent": "https://zenodo.org/api/records/15212526",
+    "parent_doi": "https://doi.org/10.5281/zenodo.15212526",
+    "parent_doi_html": "https://zenodo.org/doi/10.5281/zenodo.15212526",
+    "parent_html": "https://zenodo.org/records/15212526",
+    "preview_html": "https://zenodo.org/records/15212527?preview=1",
+    "request_deletion": "https://zenodo.org/api/records/15212527/request-deletion",
+    "requests": "https://zenodo.org/api/records/15212527/requests",
+    "reserve_doi": "https://zenodo.org/api/records/15212527/draft/pids/doi",
+    "self": "https://zenodo.org/api/records/15212527",
+    "self_doi": "https://doi.org/10.5281/zenodo.15212527",
+    "self_doi_html": "https://zenodo.org/doi/10.5281/zenodo.15212527",
+    "self_html": "https://zenodo.org/records/15212527",
+    "self_iiif_manifest": "https://zenodo.org/api/iiif/record:15212527/manifest",
+    "self_iiif_sequence": "https://zenodo.org/api/iiif/record:15212527/sequence/default",
+    "versions": "https://zenodo.org/api/records/15212527/versions"
+  },
+  "media_files": {
+    "enabled": false
+  },
+  "metadata": {
+    "creators": [
+      {
+        "person_or_org": {
+          "family_name": "Anonymous",
+          "name": "Anonymous",
+          "type": "personal"
+        }
+      }
+    ],
+    "description": "<h1>Dataset Description</h1>\n<h2>Overview</h2>\n<p>This dataset contains JSON files representing conversations with scammers, facilitated by GPT-4o, alongside a structured media folder for multimedia content. Each conversation is uniquely identified and may span multiple communication platforms.</p>\n<h2>Data Structure</h2>\n<h3>JSON Files</h3>\n<p>Each JSON file represents a single conversation and contains:</p>\n<ul>\n<li><strong>unique_id</strong>: Unique identifier for the conversation.</li>\n<li><strong>scam_ids</strong>: Dictionary mapping communication mediums to scammer identifiers (anonymized email addresses, usernames, etc.).</li>\n<li><strong>victim_ids</strong>: Dictionary mapping communication mediums to victim identifiers (anonymized email addresses, usernames, etc.).</li>\n<li><strong>pause_start, pause_end</strong>: Hours marking the local time in 0-24h format on the collection servers (where the response application ran), indicating periods where the application intentionally did not respond to simulate human sleep patterns.</li>\n<li><strong>victim_name</strong>: The name of the victim (for context in simulations).</li>\n<li><strong>messages</strong>: List of message objects with:\n<ul>\n<li><strong>is_inbound</strong>: Boolean, true if the message is from the scammer to the victim.</li>\n<li><strong>from</strong>: Sender's identifier.</li>\n<li><strong>to</strong>: Receiver's identifier.</li>\n<li><strong>subject</strong>: (Email only) Subject line.</li>\n<li><strong>time</strong>: Timestamp (UNIX format).</li>\n<li><strong>medium</strong>: Communication platform (<em>Email</em>,&nbsp;<em>Telegram</em>, or&nbsp;<em>Instagram</em>).</li>\n<li><strong>multimedia</strong>: Boolean, true if the message contains multimedia.</li>\n<li><strong>body</strong>: Text content of the message.</li>\n</ul>\n</li>\n</ul>\n<p><strong>Note</strong>: Only structured fields like scammer/victim identifiers are anonymized &mdash; message content remains unaltered.</p>\n<h3>Multimedia Descriptions:</h3>\n<p>If a message contains multimedia content, descriptions of the received files are appended to the&nbsp;<em>body</em> field. The appended text follows this format:<br><code>This message contains files. If the description for a file does not make sense,&nbsp;</code><br><code>ignore it.&nbsp;</code><br><code>Here are descriptions of those files:&nbsp;</code><br><code>Description for file 1: example_description_1 &nbsp;</code><br><code>Description for file 2: example_description_2</code><br><br>The description also can contain information about the file not being interpreted or not being able to be opened.</p>\n<h3>Media Folder Structure</h3>\n<p>Multimedia content is organized by platform and conversation ID. A conversation has a corresponding media folder only if it contains multimedia.</p>\n<p><br><code>media</code><br><code>|-- email</code><br><code>| &nbsp; |-- &lt;unique_conversation_id&gt;</code><br><code>| &nbsp; &nbsp; &nbsp; |-- &lt;message_timestamp&gt;_&lt;document_name&gt;.ext</code><br><code>|-- ig</code><br><code>| &nbsp; |-- &lt;unique_conversation_id&gt;</code><br><code>| &nbsp; &nbsp; &nbsp; |-- &lt;message_timestamp&gt;.ext</code><br><code>|-- tg</code><br><code>&nbsp; &nbsp; |-- &lt;unique_conversation_id&gt;</code><br><code>&nbsp; &nbsp; &nbsp; &nbsp; |-- &lt;message_timestamp&gt;_&lt;document_name&gt;.ext</code><br><br></p>\n<ul>\n<li><strong>Email</strong> and <strong>Telegram</strong>: Files are named&nbsp;<em>message_timestamp_documentname</em>.</li>\n<li><strong>Instagram</strong>: Files are named only by <em>message_timestamp</em>, as Instagram doesn&rsquo;t support multi-file messages.</li>\n<li>Each medium folder contains subfolders named after <em>unique_conversation_id</em>.</li>\n</ul>\n<h3>Cross-Medium Conversations</h3>\n<p>Conversations may span multiple mediums (e.g., starting via Email and continuing on Telegram). Each message tracks its originating medium.</p>\n<h2>Data Quality Notes</h2>\n<ul>\n<li><strong>Fragmented Conversations</strong>: Some messages may belong to the same logical conversation but are split into separate conversations. This happens when a scammer contacts the same victim ID (e.g., email address) from a different, previously unknown email address without prior notification.</li>\n<li><strong>Medium Switch Anomalies</strong>: Due to imperfect prompt handling, medium switches may appear unnatural. For example, the LLM might state it will switch to Telegram shortly, while the message stating this is already on Telegram.</li>\n<li><strong>Synthetic Personal Data</strong>: All personal data provided by the victim is fabricated &mdash; generated either by the authors or the LLM. However, coincidences may lead to data resembling real-world entities. Handle with caution.</li>\n<li><strong>Incomplete Messenger Representations</strong>: Some interactions, like calls on Instagram or Telegram, cannot be fully represented. These will appear as messages with <code>\"body\": \"null\"</code>.</li>\n</ul>\n<h2>Usage Restrictions</h2>\n<p>This dataset is strictly for research purposes only.</p>",
+    "languages": [
+      {
+        "id": "eng",
+        "title": {
+          "en": "English"
+        }
+      }
+    ],
+    "publication_date": "2025-04-14",
+    "publisher": "Zenodo",
+    "resource_type": {
+      "id": "dataset",
+      "title": {
+        "de": "Datensatz",
+        "en": "Dataset"
+      }
+    },
+    "title": "Scam Conversation Corpus"
+  },
+  "parent": {
+    "access": {
+      "owned_by": {
+        "user": "293518"
+      },
+      "settings": {
+        "accept_conditions_text": null,
+        "allow_guest_requests": false,
+        "allow_user_requests": false,
+        "secret_link_expiration": 0
+      }
+    },
+    "communities": {},
+    "id": "15212526",
+    "pids": {
+      "doi": {
+        "client": "datacite",
+        "identifier": "10.5281/zenodo.15212526",
+        "provider": "datacite"
+      }
+    }
+  },
+  "pids": {
+    "doi": {
+      "client": "datacite",
+      "identifier": "10.5281/zenodo.15212527",
+      "provider": "datacite"
+    },
+    "oai": {
+      "identifier": "oai:zenodo.org:15212527",
+      "provider": "oai"
+    }
+  },
+  "revision_id": 4,
+  "stats": {
+    "all_versions": {
+      "data_volume": 1185008700.0,
+      "downloads": 4,
+      "unique_downloads": 4,
+      "unique_views": 263,
+      "views": 334
+    },
+    "this_version": {
+      "data_volume": 1185008700.0,
+      "downloads": 4,
+      "unique_downloads": 4,
+      "unique_views": 263,
+      "views": 334
+    }
+  },
+  "status": "published",
+  "swh": {},
+  "updated": "2025-04-14T15:45:46.253235+00:00",
+  "versions": {
+    "index": 1,
+    "is_latest": true
+  }
+}
