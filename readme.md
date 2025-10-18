@@ -46,5 +46,5 @@ Using **Google’s Gemini LLM**, this chatbot simulates real-world catfishing co
 
 ### 1️⃣ Clone the Repository
 ```bash
-git clone https://github.com/<your-username>/catphish_demo.git
-cd catphish_demo
+git clone https://github.com/akash4426/Cat_Phishing-.git
+cd Cat_Phishing-
