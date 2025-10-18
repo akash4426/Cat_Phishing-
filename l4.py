@@ -15,9 +15,9 @@ import os
 # CONFIG / SECRETS
 # -------------------------
 st.set_page_config(page_title="Catphishing Awareness Demo (SIMULATION)", layout="centered")
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+apikey = os.environ.get("GEMINI_API_KEY")
 
-genai.configure(api_key="AIzaSyBEbPbz4XlP_qkVtqaC-kqSF1-0rJ6YB0Q")
+genai.configure(api_key=apikey)
 
 DATA_PATH = "cat.json"  # change if needed
 
