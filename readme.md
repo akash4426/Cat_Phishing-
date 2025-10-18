@@ -1,83 +1,50 @@
-🐾 Catphishing Awareness Chatbot (AI-Powered Demo)
-🧠 Project Overview
+# 🐾 Catphishing Awareness Chatbot (AI-Powered Demo)
 
-This project is an AI-powered awareness demo designed to educate students about catfishing attacks — a form of online deception where attackers impersonate someone to manipulate or scam victims.
+[![Streamlit](https://img.shields.io/badge/Built%20with-Streamlit-FF4B4B?logo=streamlit&logoColor=white)](https://streamlit.io/)
+[![Gemini AI](https://img.shields.io/badge/Powered%20by-Google%20Gemini-4285F4?logo=google&logoColor=white)](https://deepmind.google/technologies/gemini/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Python](https://img.shields.io/badge/Made%20with-Python-blue?logo=python)](https://www.python.org/)
 
-Using Google’s Gemini LLM, this chatbot simulates real-world catfishing conversations and helps users learn how to detect manipulative patterns safely in a controlled environment.
+---
 
-⚠️ Disclaimer:
-This project is intended strictly for educational and awareness purposes only.
-It does not promote, encourage, or enable any malicious or deceptive online behavior.
+## 🧠 Project Overview
 
-🚀 Features
+This project is an **AI-powered awareness demo** designed to educate students about **catfishing attacks** — a form of online deception where attackers impersonate someone to manipulate or scam victims.
 
-🗨️ Realistic Chat Simulation: Uses Gemini API to generate both attacker and victim responses.
+Using **Google’s Gemini LLM**, this chatbot simulates real-world catfishing conversations and helps users learn how to **detect manipulative patterns** safely in a **controlled environment**.
 
-🧩 Dataset Integration: Trained using the Social Computing Catfishing Corpus (SCC) dataset.
+> ⚠️ **Disclaimer**  
+> This project is intended **strictly for educational and awareness purposes only**.  
+> It does **not promote, encourage, or enable** any malicious or deceptive online behavior.
 
-🎓 Awareness Mode: Highlights manipulation cues and explains red flags during interaction.
+---
 
-🌐 Interactive Web App: Built with Streamlit for easy browser-based demonstration.
+## 🚀 Features
 
-🔒 Secure Key Handling: .env file used to protect sensitive API keys.
+✅ **Realistic Chat Simulation** — Uses Gemini API to generate both attacker and victim responses.  
+🧩 **Dataset Integration** — Trained using the *Social Computing Catfishing Corpus (SCC)* dataset.  
+🎓 **Awareness Mode** — Highlights manipulation cues and explains red flags during interaction.  
+🌐 **Interactive Web App** — Built with Streamlit for browser-based demonstration.  
+🔒 **Secure Key Handling** — `.env` file used to protect sensitive API keys.
 
-🧰 Tech Stack
-Component	Technology Used
-Frontend UI	Streamlit
-LLM	Gemini API (Google Generative AI)
-Dataset	Social Computing Catfishing Corpus (SCC)
-Language	Python
-Env Management	python-dotenv
-Deployment	Streamlit Cloud / Localhost
-📦 Installation & Setup
-1️⃣ Clone the Repository
+---
+
+## 🧰 Tech Stack
+
+| Component | Technology Used |
+|------------|------------------|
+| **Frontend UI** | Streamlit |
+| **LLM** | Google Gemini API |
+| **Dataset** | Social Computing Catfishing Corpus (SCC) |
+| **Language** | Python |
+| **Environment Management** | python-dotenv |
+| **Deployment** | Streamlit Cloud / Localhost |
+
+---
+
+## 📦 Installation & Setup
+
+### 1️⃣ Clone the Repository
+```bash
 git clone https://github.com/<your-username>/catphish_demo.git
 cd catphish_demo
-
-2️⃣ Create a Virtual Environment
-python -m venv venv
-source venv/bin/activate    # On macOS/Linux
-venv\Scripts\activate       # On Windows
-
-3️⃣ Install Requirements
-pip install -r requirements.txt
-
-4️⃣ Add Your Gemini API Key
-
-Create a .env file in the root directory:
-
-GEMINI_API_KEY=AIzaSyDxxxxxxxxxxxxxxxxxxxx
-
-▶️ Run the Application
-streamlit run app.py
-
-
-Then open the URL shown in the terminal (usually http://localhost:8501).
-
-🧠 How It Works
-
-The chatbot loads real or simulated messages from the catfishing dataset.
-
-Gemini LLM generates context-aware responses for both sides.
-
-Awareness layer highlights suspicious behaviors, emotional manipulation, and trust tactics.
-
-The chat ends with educational insights on identifying catfishing patterns.
-
-📊 Dataset Reference
-
-Social Computing Catfishing Corpus (SCC)
-🔗 https://dataverse.harvard.edu/dataset.xhtml?persistentId=doi:10.7910/DVN/SCC2022
-
-🛡️ Security Notes
-
-All personal data used in demos is synthetic.
-
-The project follows ethical AI principles for digital safety awareness.
-
-Always store API keys securely using .env and never commit them to GitHub.
-
-🤝 Contributing
-
-Pull requests are welcome!
-For major changes, please open an issue first to discuss what you’d like to improve.
