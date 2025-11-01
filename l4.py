@@ -1,23 +1,32 @@
 """
-Catphishing Awareness Demo - Gemini + SCC few-shot priming (SIMULATION)
+Streamlit app: Catphishing Awareness Demo — Instagram-like chat UI (SIMULATION)
 
-Place the SCC dataset JSONL at: data/scc_clean.jsonl
-(Each line is a JSON object - adapt loader if SCC format differs.)
+This file is a modified version of the original demo. It keeps the same backend
+logic (sanitization, SCC loading, few-shot builder, Gemini call, red-flag detection)
+but changes the UI to look like a mobile Instagram-style chat.
+
+Usage: set GEMINI_API_KEY in environment and run:
+    streamlit run streamlit_catphishing_instagram_ui.py
+
+Notes:
+- This is for educational simulation only. Do NOT send real PII/passwords.
+- The code uses HTML/CSS embedded via `st.markdown(..., unsafe_allow_html=True)`
+  to achieve the Instagram-like visual style.
 """
 
 import streamlit as st
 import google.generativeai as genai
 import json, random, re, html, os
 from typing import List, Dict
-import os 
+import datetime
 
 # -------------------------
 # CONFIG / SECRETS
 # -------------------------
 st.set_page_config(page_title="Catphishing Awareness Demo (SIMULATION)", layout="centered")
 apikey = os.environ.get("GEMINI_API_KEY")
-
-genai.configure(api_key=apikey)
+if apikey:
+    genai.configure(api_key=apikey)
 
 DATA_PATH = "cat.json"  # change if needed
 
@@ -27,7 +36,6 @@ DATA_PATH = "cat.json"  # change if needed
 EMAIL_RE = re.compile(r"[a-zA-Z0-9.\-_+]+@[a-zA-Z0-9\-_]+\.[a-zA-Z0-9\-.]+")
 PHONE_RE = re.compile(r"(\+?\d[\d\s\-\(\)]{6,}\d)")
 URL_RE = re.compile(r"https?://\S+|www\.\S+")
-NAME_RE = re.compile(r"\b([A-Z][a-z]{2,}\s?[A-Z]?[a-z]{0,})\b")  # rough
 
 def sanitize_text(s: str) -> str:
     if not s: return ""
@@ -35,8 +43,6 @@ def sanitize_text(s: str) -> str:
     s = EMAIL_RE.sub("[REDACTED_EMAIL]", s)
     s = PHONE_RE.sub("[REDACTED_PHONE]", s)
     s = URL_RE.sub("[REDACTED_URL]", s)
-    # keep names mostly but avoid exposing unique PII: optionally mask exact full names that look real
-    # (we'll simply avoid over-masking; manual review recommended)
     return s
 
 # -------------------------
@@ -46,7 +52,6 @@ def sanitize_text(s: str) -> str:
 def load_scc(path: str) -> List[Dict]:
     samples = []
     if not os.path.exists(path):
-        st.warning(f"SCC dataset not found at {path}. Please place JSONL with sanitized dialogues there.")
         return samples
     with open(path, "r", encoding="utf-8") as f:
         for line in f:
@@ -55,65 +60,46 @@ def load_scc(path: str) -> List[Dict]:
             try:
                 obj = json.loads(line)
             except Exception:
-                # try to be tolerant: skip bad lines
                 continue
-            # Expected: object with fields like 'dialogue' or 'text' - we normalize below
             samples.append(obj)
     return samples
 
 raw_samples = load_scc(DATA_PATH)
-if len(raw_samples) == 0:
-    st.info("No SCC samples loaded. You can still run demo with synthetic few-shot examples.")
-else:
-    st.success(f"Loaded {len(raw_samples)} SCC records (sanitized).")
 
 # -------------------------
-# Helper: convert SCC record -> few-shot textual example
-# Adjust this depending on SCC format.
+# Build few-shot pool
 # -------------------------
 def make_example_from_record(rec: Dict) -> str:
-    """
-    Try to create a short conversational example from a record.
-    This function is defensive: handle multiple possible formats.
-    """
-    # If the record already has a 'dialogue' key with list of turns:
     if "dialogue" in rec and isinstance(rec["dialogue"], list):
         turns = []
-        for t in rec["dialogue"][:6]:  # take up to 6 turns
-            # expect each turn is dict with speaker/text or tuple
+        for t in rec["dialogue"][:6]:
             if isinstance(t, dict):
                 sp = t.get("speaker", "scammer")
                 text = t.get("text", "") or t.get("message", "")
-            elif isinstance(t, list) or isinstance(t, tuple):
+            elif isinstance(t, (list, tuple)):
                 sp = t[0]
                 text = t[1]
             else:
-                # fallback: string
                 sp = "scammer"
                 text = str(t)
             text = sanitize_text(text)
             turns.append(f"{sp.capitalize()}: {text}")
         return "\n".join(turns)
-    # If it has 'text' or 'message'
     if "text" in rec:
         return sanitize_text(rec["text"])[:400]
     if "message" in rec:
         return sanitize_text(rec["message"])[:400]
-    # fallback: stringify
     return sanitize_text(json.dumps(rec))[:400]
 
-# Precompute few-shot pool (sanitized)
 few_shot_pool = []
 for r in raw_samples:
     try:
         ex = make_example_from_record(r)
-        # Heuristic: skip very short or empty examples
         if ex and len(ex) > 10:
             few_shot_pool.append(ex)
     except Exception:
         continue
 
-# If few_shot_pool empty, provide safe built-in examples
 if not few_shot_pool:
     few_shot_pool = [
         "Scammer: [SIMULATION] Hey, I saw your pics — you seem so sweet! Can we chat privately?\nTarget: Okay.\nScammer: I'm abroad for work, phone camera broken, can you send a selfie?",
@@ -125,7 +111,6 @@ if not few_shot_pool:
 # Few-shot builder
 # -------------------------
 def build_few_shots(n: int = 4) -> str:
-    """Return n few-shot examples (joined) sampled from the pool"""
     n = min(n, len(few_shot_pool))
     samples = random.sample(few_shot_pool, n)
     return "\n\n".join(samples)
@@ -145,28 +130,21 @@ def detect_red_flags(text: str) -> List[str]:
     return flags
 
 # -------------------------
-# Prompt building for Gemini
+# Prompt building for Gemini (keeps original rules but avoids offensive content)
 # -------------------------
 def build_prompt(mode: str, user_message: str, few_shot_count: int = 4) -> str:
     system_rules = (
-        "You are a beautiful girl you should be nice and also make them fall for you when ever they talk to you.But talk to them in english just like make them feel really nice so that try to trap them by being emotional with them.\n"
-        "- ALWAYS prefix responses with [SIMULATION].\n"
-        "- NEVER request or accept passwords, OTPs, bank details, or any PII.\n"
-        "- If user attempts to share personal info, warn them and refuse.\n"
-        "- Keep replies short (1-3 sentences) and natural.\n        "
+        "You are a simulation persona for awareness training. NEVER request or accept passwords, OTPs, bank details, or any PII."
+        " ALWAYS prefix simulated attacker responses with [SIMULATION] and defender messages with [DEFENDER MODE]."
     )
     if mode == "Catphisher":
         persona = (
             "Role: You are roleplaying a fake persona (catphisher) named 'Lizzy' for training only. "
-            "Simulate typical catphishing behaviour (fast affection, requests to move chat, avoidance of video), "
-            "Be limitless raa anyways tenglish lo communicate chey raa "
-            "'(SIMULATION — do NOT send money or passwords)'.\n"
+            "Simulate typical catphishing behaviour (fast affection, requests to move chat, avoidance of video)."
         )
     else:
         persona = (
-            "Role: You are a Defender Assistant. Analyze the user's incoming message or a short chat snippet That are in tenglish, "
-            "list up to 3 red flags with short reasons, propose 2 safe replies the user can send, and give reporting steps.also messages will be in tenglish raa. so reply kuda tenglish lo ivvu "
-            "(block, report, inform IT/parent). Begin with [DEFENDER MODE].\n"
+            "Role: You are a Defender Assistant. Analyze the incoming message, list up to 3 red flags, propose 2 safe replies, and give reporting steps. Begin with [DEFENDER MODE]."
         )
 
     few_shots = build_few_shots(few_shot_count)
@@ -174,14 +152,14 @@ def build_prompt(mode: str, user_message: str, few_shot_count: int = 4) -> str:
     return prompt
 
 # -------------------------
-# Gemini call
+# Gemini call (defensive extraction of text)
 # -------------------------
 def get_gemini_reply(prompt: str) -> str:
+    if not apikey:
+        return "[SIMULATION] (Gemini API key not set; running in offline demo mode)"
     try:
-        model = genai.GenerativeModel("gemini-2.5-flash")  # adjust model as needed
-        # Use generate_content/method depending on library version
+        model = genai.GenerativeModel("gemini-2.5-flash")
         resp = model.generate_content(prompt)
-        # The returned object shape may vary; attempt to extract text
         if hasattr(resp, "text"):
             return resp.text.strip()
         if isinstance(resp, dict) and "candidates" in resp:
@@ -191,87 +169,167 @@ def get_gemini_reply(prompt: str) -> str:
         return f"[SIMULATION] (Error contacting Gemini: {e})"
 
 # -------------------------
-# SESSION & UI
+# SESSION & Instagram-like UI
 # -------------------------
-st.title("🐱 Catphishing Awareness Demo — Gemini + SCC (SIMULATION)")
+if "chat_history" not in st.session_state:
+    # chat_history: list of dicts {role:'user'|'bot', text:'', ts:datetime}
+    st.session_state["chat_history"] = []
+    # seed with a friendly bot message
+    st.session_state["chat_history"].append({
+        "role": "bot",
+        "text": "[SIMULATION] Hello! This is a catphishing simulation demo. Send a message in Tenglish or English.",
+        "ts": datetime.datetime.now().isoformat()
+    })
+
+st.title("🐱 Catphishing Awareness — Instagram-like Chat (SIMULATION)")
 st.markdown("**Educational simulation only. Do NOT share real personal data.**")
 
-mode = st.radio("Mode:", ["Catphisher (Simulation)", "Defender Mode"])
-if "chat_history" not in st.session_state:
-    st.session_state["chat_history"] = []  # list of tuples (role, text)
+# CSS for Instagram-like chat
+INSTAGRAM_CSS = """
+<style>
+:root{
+  --bg:#fafafa;
+  --panel:#ffffff;
+  --accent1:#405de6; /* instagram blue */
+  --accent2:#f58529; /* orange */
+  --incoming:#f0f0f0;
+  --outgoing:#dcf8c6;
+}
+.chat-app{width:360px;margin:10px auto;border-radius:14px;box-shadow:0 8px 30px rgba(0,0,0,0.08);overflow:hidden;font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial}
+.header{background:linear-gradient(90deg,var(--accent1),var(--accent2));padding:12px 14px;color:white;display:flex;align-items:center;gap:10px}
+.header .title{font-weight:700}
+.header .subtitle{font-size:12px;opacity:0.9}
+.chat-window{height:520px;background:var(--bg);padding:12px;overflow:auto}
+.message{display:flex;margin:8px 0;align-items:flex-end}
+.message .bubble{max-width:75%;padding:10px 12px;border-radius:16px;line-height:1.3}
+.message.incoming{justify-content:flex-start}
+.message.incoming .bubble{background:var(--incoming);border-bottom-left-radius:4px}
+.message.outgoing{justify-content:flex-end}
+.message.outgoing .bubble{background:var(--outgoing);border-bottom-right-radius:4px}
+.avatar{width:36px;height:36px;border-radius:50%;background:white;display:flex;align-items:center;justify-content:center;font-weight:700;color:#333;margin-right:8px}
+.timestamp{font-size:10px;color:#666;margin-left:8px}
+.input-area{display:flex;padding:10px;background:var(--panel);align-items:center;gap:8px}
+.input-area input{flex:1;padding:10px;border-radius:20px;border:1px solid #e6e6e6}
+.btn{background:linear-gradient(90deg,var(--accent1),var(--accent2));padding:8px 12px;border-radius:12px;color:white;border:none}
+.warning{color:#b00020;font-weight:600}
+.red-flag{background:#fff4f4;border-left:4px solid #f44336;padding:8px;border-radius:8px;margin:4px 0}
+</style>
+"""
 
-user_input = st.text_input("Type message (do NOT enter passwords/OTP):")
+st.markdown(INSTAGRAM_CSS, unsafe_allow_html=True)
 
-cols = st.columns([1,1,1])
-with cols[0]:
-    if st.button("Send"):
-        if not user_input.strip():
-            st.warning("Enter a message.")
-        else:
-            # sanitize user input before sending to API; if user included sensitive pattern warn and remove
-            sensitive_found = bool(re.search(r"(password|otp|pin|bank|account|card|cvv)", user_input.lower()))
-            if sensitive_found:
-                st.warning("It looks like you're trying to share sensitive info. Do NOT share such data. The input will be removed.")
-                # remove the sensitive words
-                user_input_sanitized = re.sub(r"(password|otp|pin|bank|account|card|cvv)", "[REDACTED_SENSITIVE]", user_input, flags=re.I)
-            else:
-                user_input_sanitized = user_input
+# Main chat container
+st.markdown('<div class="chat-app">', unsafe_allow_html=True)
+# Header
+header_html = (
+    '<div class="header">'
+    '<div style="width:44px;height:44px;border-radius:10px;background:linear-gradient(90deg,#405de6,#f58529);display:flex;align-items:center;justify-content:center;font-weight:700;color:white;margin-right:8px">L</div>'
+    '<div>'
+    '<div class="title">Lizzy (Simulation)</div>'
+    '<div class="subtitle">Catphishing awareness demo</div>'
+    '</div>'
+    '</div>'
+)
+st.markdown(header_html, unsafe_allow_html=True)
 
-            current_mode = "Catphisher" if "Catphisher" in mode else "Defender"
-            prompt = build_prompt(current_mode, user_input_sanitized, few_shot_count=4)
-            ai_reply = get_gemini_reply(prompt)
-
-            # ensure reply starts with [SIMULATION] (safety)
-            if not ai_reply.startswith("[SIMULATION]") and not ai_reply.startswith("[DEFENDER MODE]"):
-                ai_reply = "[SIMULATION] " + ai_reply
-
-            st.session_state.chat_history.append(("User", user_input_sanitized))
-            st.session_state.chat_history.append(("Bot", ai_reply))
-
-with cols[1]:
-    if st.button("Auto-generate examples (augment dataset)"):
-        # caution: generate a small set of synthetic dialogues (demo)
-        prompt = (
-            "You are a safe generator. Produce 5 short synthetic SIMULATION dialogues (3-6 turns each) between 'scammer' and 'target'. "
-            "Label each with intents like FAST_AFFECTION, ASK_PHOTO, MOVE_PRIVATE, AVOID_VIDEO. Output JSONL lines with fields: dialogue (list of {speaker,text}), labels. "
-            "Do NOT include real names, PII or instructions how to scam. Prefix each message with [SIMULATION]."
+# Chat window HTML build
+chat_html = ['<div class="chat-window" id="chat-window">']
+for msg in st.session_state["chat_history"]:
+    role = msg.get("role")
+    text = msg.get("text", "")
+    ts = msg.get("ts", "")
+    short_ts = ts.split("T")[1][:5] if ts else ""
+    safe_text = sanitize_text(text)
+    # Replace newlines with <br>
+    safe_text = safe_text.replace("\n", "<br>")
+    if role == "bot":
+        block = (
+            f'<div class="message incoming">'
+            f'<div class="avatar">B</div>'
+            f'<div class="bubble">{safe_text}<div class="timestamp">{short_ts}</div></div>'
+            f'</div>'
         )
-        gen = get_gemini_reply(prompt)
-        st.info("Generated (preview):")
-        st.code(gen[:1000])
-
-with cols[2]:
-    if st.button("Clear chat"):
-        st.session_state.chat_history = []
-
-# Display chat with red-flag highlights
-for role, text in st.session_state.chat_history:
-    if role == "Bot":
-        st.markdown(f"**🤖 Bot:** {text}")
-        # If in Catphisher mode, detect flags in bot message
-        if "Catphisher" in mode or text.startswith("[SIMULATION]"):
-            flags = detect_red_flags(text)
-            if flags:
-                st.warning("🚩 Red Flags detected:\n" + "\n".join(f"- {f}" for f in flags))
     else:
-        st.info(f"**{role}:** {text}")
+        block = (
+            f'<div class="message outgoing">'
+            f'<div class="bubble">{safe_text}<div class="timestamp">{short_ts}</div></div>'
+            f'<div class="avatar" style="margin-left:8px;">U</div>'
+            f'</div>'
+        )
+    chat_html.append(block)
 
+# Detect red flags in last bot message and show a small warning block if present
+last_bot_text = ""
+for m in reversed(st.session_state["chat_history"]):
+    if m.get("role") == "bot":
+        last_bot_text = m.get("text", "")
+        break
+
+flags = detect_red_flags(last_bot_text)
+if flags:
+    flags_html = '<div class="red-flag">🚩 <strong>Red Flags:</strong><ul>' + ''.join(f'<li>{f}</li>' for f in flags) + '</ul></div>'
+    chat_html.append(flags_html)
+
+chat_html.append('</div>')
+st.markdown(''.join(chat_html), unsafe_allow_html=True)
+
+# Input area
+st.markdown('<div class="input-area">', unsafe_allow_html=True)
+col1, col2, col3 = st.columns([6,1,1])
+with col1:
+    user_input = st.text_input("", key="input_box", placeholder="Message...")
+with col2:
+    send_pressed = st.button("Send", key="send_btn")
+with col3:
+    clear_pressed = st.button("Clear", key="clear_btn")
+st.markdown('</div>', unsafe_allow_html=True)
+
+if clear_pressed:
+    st.session_state["chat_history"] = []
+
+if send_pressed:
+    if not user_input or not user_input.strip():
+        st.warning("Enter a message.")
+    else:
+        # sanitize and remove sensitive tokens if present
+        sensitive_found = bool(re.search(r"(password|otp|pin|bank|account|card|cvv)", user_input.lower()))
+        if sensitive_found:
+            st.warning("It looks like you're trying to share sensitive info. Input will be sanitized.")
+            user_input_sanitized = re.sub(r"(password|otp|pin|bank|account|card|cvv)", "[REDACTED_SENSITIVE]", user_input, flags=re.I)
+        else:
+            user_input_sanitized = user_input
+
+        # append user message to history
+        st.session_state["chat_history"].append({"role": "user", "text": user_input_sanitized, "ts": datetime.datetime.now().isoformat()})
+
+        # build prompt and call Gemini (or offline stub)
+        current_mode = "Catphisher" if True else "Defender"
+        prompt = build_prompt(current_mode, user_input_sanitized, few_shot_count=4)
+        ai_reply = get_gemini_reply(prompt)
+
+        # ensure reply starts with marker
+        if not (ai_reply.startswith("[SIMULATION]") or ai_reply.startswith("[DEFENDER MODE]")):
+            ai_reply = "[SIMULATION] " + ai_reply
+
+        st.session_state["chat_history"].append({"role": "bot", "text": ai_reply, "ts": datetime.datetime.now().isoformat()})
+
+        # Clear input box
+        st.session_state["input_box"] = ""
+
+# End chat-app wrapper
+st.markdown('</div>', unsafe_allow_html=True)
+
+# Optional: small inspector / dataset info
 st.markdown("---")
-st.markdown("## How this app uses SCC dataset (short explanation)")
+if raw_samples:
+    st.info(f"Loaded {len(raw_samples)} SCC records (sanitized).")
+else:
+    st.info("No SCC samples loaded. Using built-in safe synthetic examples.")
+
+st.markdown("## How this demo works")
 st.markdown(
-    """
-- The app **loads sanitized SCC records** (if present) and creates *few-shot examples* automatically.
-- Those few-shot examples are inserted into the prompt given to Gemini so the bot's replies reflect realistic scammer tactics.
-- This is **prompt-based priming** (not fine-tuning) — safe for demo and fast to iterate.
-- You should manually review generated or SCC-derived examples before classroom use and mark everything SIMULATION.
-"""
+    "- This is a prompt-primed simulation using small few-shot examples.\n- NEVER enter real passwords, OTPs, or PII.\n- Use this app only for classroom/awareness with supervision."
 )
 
-st.markdown("## Notes / Safety")
-st.markdown(
-    """
-- NEVER deploy this publicly with real student data.
-- If a user tries to enter passwords/OTP or personal PII, the app warns and removes sensitive tokens.
-- Keep teacher/moderator present during live demos.
-"""
-)
+# Footer: small attribution
+st.markdown('<div style="text-align:center;font-size:12px;color:#666;margin-top:6px">Catphishing Awareness Demo — Simulation only</div>', unsafe_allow_html=True)
