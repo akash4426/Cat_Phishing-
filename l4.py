@@ -171,15 +171,74 @@ def get_gemini_reply(prompt: str) -> str:
 # -------------------------
 # SESSION & Instagram-like UI
 # -------------------------
+# (Full file omitted above — only modified parts shown here)
+# Add near session_state initialization (after setting up chat_history)
 if "chat_history" not in st.session_state:
-    # chat_history: list of dicts {role:'user'|'bot', text:'', ts:datetime}
     st.session_state["chat_history"] = []
-    # seed with a friendly bot message
     st.session_state["chat_history"].append({
         "role": "bot",
         "text": "[SIMULATION] Hello! This is a catphishing simulation demo. Send a message in Tenglish or English.",
         "ts": datetime.datetime.now().isoformat()
     })
+
+# Initialize a separate session key to control the text_input default value.
+# We will NOT directly modify st.session_state["input_box"] after the widget is created.
+if "input_default" not in st.session_state:
+    st.session_state["input_default"] = ""
+
+# ... (your CSS + chat HTML building left unchanged) ...
+
+# Input area (REPLACED block)
+st.markdown('<div class="input-area">', unsafe_allow_html=True)
+col1, col2, col3 = st.columns([6,1,1])
+
+with col1:
+    # Use `value=` bound to a separate key `input_default`. Do NOT write to `input_box` directly.
+    user_input = st.text_input("", key="input_box", value=st.session_state.get("input_default", ""), placeholder="Message...")
+with col2:
+    send_pressed = st.button("Send", key="send_btn")
+with col3:
+    clear_pressed = st.button("Clear", key="clear_btn")
+st.markdown('</div>', unsafe_allow_html=True)
+
+if clear_pressed:
+    st.session_state["chat_history"] = []
+    # Also clear the input_default and rerun to reflect it in the widget
+    st.session_state["input_default"] = ""
+    st.experimental_rerun()
+
+if send_pressed:
+    # Grab the current value from the widget
+    # (don't try to assign to st.session_state["input_box"] directly)
+    if not user_input or not user_input.strip():
+        st.warning("Enter a message.")
+    else:
+        # sanitize and remove sensitive tokens if present
+        sensitive_found = bool(re.search(r"(password|otp|pin|bank|account|card|cvv)", user_input.lower()))
+        if sensitive_found:
+            st.warning("It looks like you're trying to share sensitive info. Input will be sanitized.")
+            user_input_sanitized = re.sub(r"(password|otp|pin|bank|account|card|cvv)", "[REDACTED_SENSITIVE]", user_input, flags=re.I)
+        else:
+            user_input_sanitized = user_input
+
+        # append user message to history
+        st.session_state["chat_history"].append({"role": "user", "text": user_input_sanitized, "ts": datetime.datetime.now().isoformat()})
+
+        # build prompt and call Gemini (or offline stub)
+        current_mode = "Catphisher" if True else "Defender"
+        prompt = build_prompt(current_mode, user_input_sanitized, few_shot_count=4)
+        ai_reply = get_gemini_reply(prompt)
+
+        # ensure reply starts with marker
+        if not (ai_reply.startswith("[SIMULATION]") or ai_reply.startswith("[DEFENDER MODE]")):
+            ai_reply = "[SIMULATION] " + ai_reply
+
+        st.session_state["chat_history"].append({"role": "bot", "text": ai_reply, "ts": datetime.datetime.now().isoformat()})
+
+        # --- SAFE way to clear the input: set input_default then rerun ---
+        st.session_state["input_default"] = ""   # set the value that will be passed as text_input value on next run
+        st.experimental_rerun()
+
 
 st.title("🐱 Catphishing Awareness — Instagram-like Chat (SIMULATION)")
 st.markdown("**Educational simulation only. Do NOT share real personal data.**")
