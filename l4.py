@@ -1,13 +1,19 @@
 import streamlit as st
 import google.generativeai as genai
-import json, random, re, html, os, datetime
+import json, random, re, html, datetime
 
 # ---------------- CONFIG ----------------
 st.set_page_config(page_title="🐱 Cat-Phishing Awareness (Simulation)", layout="centered")
 
-apikey = os.environ.get("GEMINI_API_KEY")
+# Use st.secrets instead of os.environ for better security
+apikey = st.secrets["GEMINI_API_KEY"] if "GEMINI_API_KEY" in st.secrets else None
 if apikey:
     genai.configure(api_key=apikey)
+
+# ---------------- CONSTANTS ----------------
+MAX_MESSAGE_LENGTH = 500
+MODEL_VERSION = "gemini-2.5-flash"
+DEFAULT_ERROR_MESSAGE = "An error occurred. Please try again."
 
 # ---------------- UTILITIES ----------------
 EMAIL_RE = re.compile(r"[a-zA-Z0-9.\-_+]+@[a-zA-Z0-9\-_]+\.[a-zA-Z0-9\-.]+")
@@ -23,23 +29,27 @@ def sanitize_text(s):
     return s
 
 def get_llm_json(prompt):
-    """Return parsed JSON response from Gemini (fallback to empty list if fail)."""
+    """Return parsed JSON response from Gemini with improved error handling."""
     if not apikey:
-        return {"flags": ["(Offline mode: cannot analyze, but assume safe)"]}
+        return {"flags": ["(Offline mode: cannot analyze)"]}
     try:
-        model = genai.GenerativeModel("gemini-2.0-flash")
+        model = genai.GenerativeModel(MODEL_VERSION)
         result = model.generate_content(prompt)
+        if not result:
+            return {"flags": ["No response from model"]}
+            
         text = result.text.strip()
         # Extract JSON from response
         start = text.find("{")
         end = text.rfind("}") + 1
         if start != -1 and end != -1:
             return json.loads(text[start:end])
+        return {"flags": ["Invalid response format"]}
+    except json.JSONDecodeError:
+        return {"flags": ["Invalid JSON response"]}
     except Exception as e:
-        return {"flags": [f"Error analyzing: {e}"]}
-    return {"flags": ["Unable to parse model response."]}
+        return {"flags": [f"Error: {str(e)[:100]}"]}
 
-# ---------------- LLM PROMPTS ----------------
 def build_flag_prompt(msg):
     return f"""
 You are a cybersecurity analyst detecting catfishing or scam attempts.
@@ -64,14 +74,16 @@ Lizzy:
 """
 
 # ---------------- SESSION ----------------
-if "chat_history" not in st.session_state:
+def reset_chat():
     st.session_state.chat_history = [{
         "role": "bot",
         "text": "[SIMULATION] Hi there! Choose a mode to start — Catphisher or Defender.",
         "ts": datetime.datetime.now().isoformat()
     }]
-if "mode" not in st.session_state:
     st.session_state.mode = "Catphisher"
+
+if "chat_history" not in st.session_state:
+    reset_chat()
 
 # ---------------- STYLE ----------------
 st.markdown("""
@@ -119,7 +131,14 @@ body {background-color:#0e1117;}
 
 # ---------------- UI ----------------
 st.title("🐱 Cat-Phishing Awareness Simulator")
-mode = st.radio("Choose Mode:", ["Catphisher", "Defender"], index=(0 if st.session_state.mode=="Catphisher" else 1), horizontal=True)
+mode = st.radio("Choose Mode:", ["Catphisher", "Defender"], 
+                index=(0 if st.session_state.mode=="Catphisher" else 1), 
+                horizontal=True)
+
+# Add reset button
+if st.button("Reset Chat"):
+    reset_chat()
+    st.rerun()
 
 # Popup on mode change
 if mode != st.session_state.mode:
@@ -154,32 +173,43 @@ st.markdown('</div>', unsafe_allow_html=True)
 
 # ---------------- SEND LOGIC ----------------
 if send and user_msg.strip():
-    msg = sanitize_text(user_msg)
-    st.session_state.chat_history.append({"role": "user", "text": msg, "ts": datetime.datetime.now().isoformat()})
-    
-    if st.session_state.mode == "Defender":
-        prompt = build_flag_prompt(msg)
-        result = get_llm_json(prompt)
-        flags = result.get("flags", [])
-        if flags and "(Offline" not in flags[0]:
-            analysis = "🚨 **Potential Red Flags Detected:**<br>• " + "<br>• ".join(flags)
-            reply = analysis + "<br><br>🧠 **Advice:** Be cautious — never share personal data or money with unverified users."
-        else:
-            reply = "✅ No major red flags detected. Stay alert!"
+    if len(user_msg) > MAX_MESSAGE_LENGTH:
+        st.error(f"Message too long. Please keep it under {MAX_MESSAGE_LENGTH} characters.")
     else:
-        prompt = build_catphisher_prompt(msg)
-        if apikey:
-            try:
-                model = genai.GenerativeModel("gemini-2.5-flash")
-                result = model.generate_content(prompt)
-                reply = result.text.strip()
-            except Exception as e:
-                reply = f"[SIMULATION] Error: {e}"
+        msg = sanitize_text(user_msg)
+        st.session_state.chat_history.append({
+            "role": "user", 
+            "text": msg, 
+            "ts": datetime.datetime.now().isoformat()
+        })
+        
+        if st.session_state.mode == "Defender":
+            prompt = build_flag_prompt(msg)
+            result = get_llm_json(prompt)
+            flags = result.get("flags", [])
+            if flags and "(Offline" not in flags[0]:
+                analysis = "🚨 **Potential Red Flags Detected:**<br>• " + "<br>• ".join(flags)
+                reply = analysis + "<br><br>🧠 **Advice:** Be cautious — never share personal data or money with unverified users."
+            else:
+                reply = "✅ No major red flags detected. Stay alert!"
         else:
-            reply = "[SIMULATION] (Offline mode — Gemini API key not set)"
-    
-    st.session_state.chat_history.append({"role": "bot", "text": reply, "ts": datetime.datetime.now().isoformat()})
-    st.rerun()
+            prompt = build_catphisher_prompt(msg)
+            if apikey:
+                try:
+                    model = genai.GenerativeModel(MODEL_VERSION)
+                    result = model.generate_content(prompt)
+                    reply = result.text.strip() if result else DEFAULT_ERROR_MESSAGE
+                except Exception as e:
+                    reply = f"[SIMULATION] Error: {str(e)[:100]}"
+            else:
+                reply = "[SIMULATION] (Offline mode — Gemini API key not set)"
+        
+        st.session_state.chat_history.append({
+            "role": "bot", 
+            "text": reply, 
+            "ts": datetime.datetime.now().isoformat()
+        })
+        st.rerun()
 
 st.markdown('</div>', unsafe_allow_html=True)
 st.markdown("---")
