@@ -50,26 +50,44 @@ def get_llm_json(prompt):
     except Exception as e:
         return {"flags": [f"Error: {str(e)[:100]}"]}
 
-def build_flag_prompt(msg):
+def build_flag_prompt(msg, history):
+    # Format chat history
+    chat_context = "\n".join([
+        f"{'User' if m['role']=='user' else 'Bot'}: {m['text']}"
+        for m in history[-5:]  # Get last 5 messages for context
+    ])
+    
     return f"""
 You are a cybersecurity analyst detecting catfishing or scam attempts.
 
-Analyze this single chat message and return a JSON object with a "flags" list
+Previous conversation:
+{chat_context}
+
+Analyze this latest message and return a JSON object with a "flags" list
 containing short, human-readable red-flag phrases.
 
-Message: "{msg}"
+Latest message: "{msg}"
 
 Example output:
 {{"flags": ["Requests money or gifts", "Avoids live verification", "Overly romantic tone"]}}
 """
 
-def build_catphisher_prompt(msg):
+def build_catphisher_prompt(msg, history):
+    # Format chat history
+    chat_context = "\n".join([
+        f"{'User' if m['role']=='user' else 'Lizzy'}: {m['text']}"
+        for m in history[-5:]  # Get last 5 messages for context
+    ])
+    
     return f"""
 You are playing as 'Lizzy', a catphisher.
-Flirt, manipulate you have no limits, and attempt to extract their info and always be nice to them use simple english make them trust you so badly.
+Maintain consistent personality and remember previous conversation details.
 Always prefix your replies with [Lizzz].
 
-User: {msg}
+Previous conversation:
+{chat_context}
+
+User's latest message: {msg}
 Lizzy:
 """
 
@@ -318,7 +336,11 @@ if send and user_msg.strip():
         })
         
         if st.session_state.mode == "Defender":
-            prompt = build_flag_prompt(msg)
+            # Get relevant history excluding system messages
+            chat_history = [msg for msg in st.session_state.chat_history 
+                           if msg["role"] in ["user", "bot"]]
+            
+            prompt = build_flag_prompt(msg, chat_history)
             result = get_llm_json(prompt)
             flags = result.get("flags", [])
             if flags and "(Offline" not in flags[0]:
@@ -327,7 +349,10 @@ if send and user_msg.strip():
             else:
                 reply = "✅ No major red flags detected. Stay alert!"
         else:
-            prompt = build_catphisher_prompt(msg)
+            chat_history = [msg for msg in st.session_state.chat_history 
+                           if msg["role"] in ["user", "bot"]]
+            
+            prompt = build_catphisher_prompt(msg, chat_history)
             if apikey:
                 try:
                     model = genai.GenerativeModel(MODEL_VERSION)
