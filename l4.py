@@ -88,52 +88,186 @@ if "chat_history" not in st.session_state:
 # ---------------- STYLE ----------------
 st.markdown("""
 <style>
-body {background-color:#0e1117;}
+/* Modern Color Scheme */
+:root {
+    --primary: #7C3AED;
+    --secondary: #5B21B6;
+    --bg-dark: #1E1B24;
+    --bg-light: #2D2B3A;
+    --text-light: #E2E8F0;
+    --accent: #06B6D4;
+}
+
+/* Global Styles */
+.stApp {
+    background-color: var(--bg-dark) !important;
+}
+
 .chat-app {
-  width:400px;margin:10px auto;
-  border-radius:16px;
-  box-shadow:0 0 25px rgba(255,255,255,0.05);
-  background:#1e1e2e;color:#eaeaea;font-family:system-ui;
+    width: 90%;
+    max-width: 600px;
+    margin: 20px auto;
+    border-radius: 20px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+    background: var(--bg-light);
+    color: var(--text-light);
+    font-family: 'Inter', system-ui, -apple-system;
+    border: 1px solid rgba(255,255,255,0.1);
+    backdrop-filter: blur(10px);
 }
+
 .header {
-  background:linear-gradient(90deg,#6a5acd,#483d8b);
-  color:white;padding:12px;border-radius:16px 16px 0 0;
-  text-align:center;font-weight:700;
+    background: linear-gradient(135deg, var(--primary), var(--secondary));
+    color: white;
+    padding: 16px;
+    border-radius: 20px 20px 0 0;
+    text-align: center;
+    font-weight: 700;
+    font-size: 1.2rem;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
+
 .chat-window {
-  height:480px;overflow-y:auto;padding:10px;background:#121212;
+    height: 500px;
+    overflow-y: auto;
+    padding: 20px;
+    background: var(--bg-dark);
+    scroll-behavior: smooth;
 }
-.message{margin:10px 0;display:flex;}
+
+.chat-window::-webkit-scrollbar {
+    width: 6px;
+}
+
+.chat-window::-webkit-scrollbar-thumb {
+    background: var(--primary);
+    border-radius: 3px;
+}
+
+.message {
+    margin: 12px 0;
+    display: flex;
+    animation: slidein 0.3s ease;
+}
+
 .message.incoming .bubble {
-  background:#2a2a40;color:#fff;border-radius:12px 12px 12px 0;
-  padding:10px;max-width:70%;
+    background: var(--bg-light);
+    color: var(--text-light);
+    border-radius: 18px 18px 18px 0;
+    padding: 12px 16px;
+    max-width: 80%;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    border: 1px solid rgba(255,255,255,0.1);
 }
-.message.outgoing{justify-content:flex-end;}
+
+.message.outgoing {
+    justify-content: flex-end;
+}
+
 .message.outgoing .bubble {
-  background:#0078d7;color:#fff;border-radius:12px 12px 0 12px;
-  padding:10px;max-width:70%;
+    background: var(--primary);
+    color: white;
+    border-radius: 18px 18px 0 18px;
+    padding: 12px 16px;
+    max-width: 80%;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
 }
+
 .system {
-  text-align:center;color:#bbb;margin:8px 0;font-style:italic;
-  animation:fadein 1s ease;
+    text-align: center;
+    color: #94A3B8;
+    margin: 16px 0;
+    font-style: italic;
+    animation: fadein 0.5s ease;
 }
+
 .red-flag-box {
-  background-color:#2c1b1b;border-left:4px solid #ff4444;
-  color:#ffdddd;padding:8px;border-radius:10px;margin:8px 0;
+    background: rgba(239, 68, 68, 0.1);
+    border-left: 4px solid #EF4444;
+    color: #FCA5A5;
+    padding: 12px;
+    border-radius: 8px;
+    margin: 12px 0;
+    animation: slidein 0.3s ease;
 }
+
 .input-area {
-  background:#1f1f2f;padding:10px;display:flex;gap:8px;
-  border-top:1px solid #333;
+    background: var(--bg-light);
+    padding: 16px;
+    border-top: 1px solid rgba(255,255,255,0.1);
+    border-radius: 0 0 20px 20px;
 }
-@keyframes fadein {from{opacity:0;transform:scale(0.9);}to{opacity:1;transform:scale(1);}}
+
+/* Animations */
+@keyframes slidein {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes fadein {
+    from {
+        opacity: 0;
+        transform: scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+/* Custom Streamlit Elements */
+.stRadio > label {
+    color: var(--text-light) !important;
+}
+
+.stButton > button {
+    background: var(--primary) !important;
+    color: white !important;
+    border-radius: 8px !important;
+    border: none !important;
+    padding: 0.5rem 1rem !important;
+    font-weight: 600 !important;
+    transition: all 0.2s ease !important;
+}
+
+.stButton > button:hover {
+    background: var(--secondary) !important;
+    transform: translateY(-1px) !important;
+}
+
+.stTextInput > div > div > input {
+    background: var(--bg-dark) !important;
+    color: var(--text-light) !important;
+    border: 1px solid rgba(255,255,255,0.1) !important;
+    border-radius: 8px !important;
+    padding: 0.5rem 1rem !important;
+}
+
 </style>
 """, unsafe_allow_html=True)
 
 # ---------------- UI ----------------
 st.title("🐱 Cat-Phishing Awareness Simulator")
-mode = st.radio("Choose Mode:", ["Catphisher", "Defender"], 
-                index=(0 if st.session_state.mode=="Catphisher" else 1), 
-                horizontal=True)
+
+st.markdown("""
+    <div style='text-align: center; color: #E2E8F0; margin-bottom: 2rem;'>
+        <p style='font-size: 1.1rem; opacity: 0.9;'>
+            Learn to identify and protect yourself from online catfishing attempts
+        </p>
+    </div>
+""", unsafe_allow_html=True)
+
+col1, col2, col3 = st.columns([1,2,1])
+with col2:
+    mode = st.radio("Choose Mode:", ["Catphisher", "Defender"], 
+                    index=(0 if st.session_state.mode=="Catphisher" else 1), 
+                    horizontal=True)
 
 # Add reset button
 if st.button("Reset Chat"):
